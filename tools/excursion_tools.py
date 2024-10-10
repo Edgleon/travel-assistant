@@ -123,3 +123,29 @@ def cancel_transport_or_excursion_booking(bookingId: str) -> list[dict]:
     headers = {'Authorization': f'token {ctsToken}'}
     response = requests.delete(url, headers=headers)
     return response.json()
+
+
+# Helpers
+
+def generate_excursion_availability_response(json_response):
+    result = []
+    service = {}
+    for data in json_response:
+        service['serviceDescription'] = data['glosas']
+        service['priceFrom'] = data['services'][0]['sale_price']
+        service['duration'] = data['services'][0]['service_duration']
+        service['allowChildren'] = data['services'][0]['allow_childs']
+        result.append(service)
+    return result
+
+
+def generate_transfer_availability_response(json_response):
+    result = []
+    service = {}
+    for data in json_response:
+        service['serviceDescription'] = data['glosas']
+        service['priceFrom'] = data['services'][0]['sale_price']
+        service['pickup'] = data['services'][0]['meeting_point']
+        service['allowChildren'] = data['services'][0]['allow_childs']
+        result.append(service)
+    return result
