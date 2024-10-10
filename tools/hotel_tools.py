@@ -1,3 +1,4 @@
+from langchain_core.tools import tool
 import os
 import requests
 from typing import Optional, List, Dict
