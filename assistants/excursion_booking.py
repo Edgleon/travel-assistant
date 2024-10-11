@@ -1,9 +1,11 @@
-import __init__
-from assistant import CompleteOrEscalate
+#import __init__
+from assistants.assistant import CompleteOrEscalate
 from langchain_core.prompts import ChatPromptTemplate
 from tools.excursion_tools import get_availability_for_transfer_and_excursions, get_town_id_for_transport_and_excursions, create_transport_or_excursion_booking, update_transport_or_excursion_booking, cancel_transport_or_excursion_booking
 from datetime import datetime
 from langchain_openai import ChatOpenAI
+from dotenv import load_dotenv
+load_dotenv()
 
 llm = ChatOpenAI(model="gpt-4o", temperature=0)
 

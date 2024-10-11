@@ -1,7 +1,9 @@
 from langchain_openai import ChatOpenAI
 from langchain_core.pydantic_v1 import BaseModel
 from langchain_core.runnables import Runnable, RunnableConfig
-
+from state import State
+from dotenv import load_dotenv
+load_dotenv()
 
 llm = ChatOpenAI(model="gpt-4o", temperature=0)
 

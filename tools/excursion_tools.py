@@ -1,7 +1,7 @@
 from typing import Optional
 import requests
 import os
-from tools.tool import tool
+from langchain_core.tools import tool
 
 
 @tool
