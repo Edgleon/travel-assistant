@@ -1,62 +1,51 @@
-from assistants.hotel_booking import hotel_booking_assistant
-from assistants.excursion_booking import excursion_assistant
-from tools.hotel_tools import get_availability_for_hotels
-from tools.excursion_tools import get_availability_for_excursions
-from langchain_core.runnables import RunnableConfig
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+from langgraph.graph import StateGraph
+from graph import runnable_instance as graph, part_4_graph
+import uuid
 from state import State
-from assistants.primary import primary_assistant
+from langchain_core.messages import ToolMessage, AIMessage
+from utilities import _print_event
 
+# Crear la aplicación FastAPI
+app = FastAPI()
 
-from dotenv import load_dotenv
-load_dotenv()
-from typing import List, Union
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
-from langchain_core.pydantic_v1 import BaseModel
-from langserve import add_routes
-import uvicorn
-import graph
-from langgraph.graph import StateGraph, START, END
+# Inicializar el grafo de estados y otros recursos necesarios
+thread_id = str(uuid.uuid4())
+conversation_history = []
 
-def main():
-    # Configurar el grafo de estado
-    builder = StateGraph(State)
+class Message(BaseModel):
+    content: str
 
-    # Definir y añadir los nodos
-    builder.add_node("primary_assistant", primary_assistant)
-    builder.add_node("book_hotel", hotel_booking_assistant)
-    builder.add_node("book_excursion", excursion_assistant)
+@app.post("/chat/")
+async def chat(message: Message):
+    global conversation_history
+    # Add the new message to the conversation history
+    conversation_history.append({"role": "user", "type": "text", "content": message.content})
 
-    # Añadir edges y lógica de enrutamiento
+    # Configuración y ejecución del grafo
+    config = {"configurable": {"thread_id": thread_id}}
+    user_input = {"messages": ("user", conversation_history)}
+    #_printed = set()
+    try:
+        # Unncoment for debug
+        #events = part_4_graph.stream(
+        #    {"messages": [{"role": "user", "type": "text", "content": message.content}]}, config, stream_mode="values"
+        #)
+        #for event in events:
+        #    _print_event(event, _printed)
 
-    # Compilar el grafo y ejecutarlo
-    part_4_graph = builder.compile()
-    config = RunnableConfig()
-    part_4_graph.invoke({"messages": ("user", "Necesito un hotel en Santiago.")}, config)
+        # Invoke the graph with the updated conversation history
+        result = part_4_graph.invoke({"messages": conversation_history}, config)
+        # Add the assistant's response to the conversation history
+        assistant_response = result['messages'][-1].content
+        conversation_history.append({"role": "assistant", "type": "text", "content": assistant_response})
 
-class ChatInputType(BaseModel):
-    input: List[Union[HumanMessage, AIMessage, SystemMessage]]
+        return {"response": assistant_response}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
-def start() -> None:
-    app = FastAPI()
-
-    origins = [
-        "http://localhost",
-        "http://localhost:8000"
-        ]
-    
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=origins,
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
-
-    add_routes(app, graph, path="/chat", playground_type="chat")
-    print("starting server...")
-    uvicorn.run(app, host="0.0.0.0", port=8000)
 
 if __name__ == "__main__":
-    main()
+    import uvicorn
+    uvicorn.run(app, host="127.0.0.1", port=8000)

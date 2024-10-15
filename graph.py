@@ -199,54 +199,21 @@ part_4_graph = builder.compile(
 
 # Define a Runnable class that meets the chat playground requirements
 class ChatRunnable(Runnable):
-    def run(self, input_data: Dict[str, List[Union[HumanMessage, AIMessage, SystemMessage]]], config: dict) -> Union[AIMessage, str]:
-        thread_id = str(uuid.uuid4())
-        config = {"configurable": {"thread_id": thread_id}}
-        _printed = set()
-        events = part_4_graph.stream(
-            {"messages": input_data["messages"]}, config, stream_mode="values"
+    def invoke(self, input_data: Dict, config: Dict = None) -> Dict:
+        """Implement the abstract method 'invoke'."""
+        return self.run(input_data["messages"])
+    def __init__(self):
+        self.graph = part_4_graph
+        self.memory = memory
+
+    def run(self, messages: List[Union[HumanMessage, AIMessage, SystemMessage]]) -> Dict:
+        config = {"configurable": {"thread_id": str(uuid.uuid4())}}
+        events = self.graph.stream(
+            {"messages": messages}, config, stream_mode="values"
         )
         for event in events:
-            _print_event(event, _printed)
-        snapshot = part_4_graph.get_state(config)
-        result = None
-        while snapshot.next:
-            # We have an interrupt! The agent is trying to use a tool, and the user can approve or deny it
-            user_input = input(
-                "Do you approve of the above actions? Type 'y' to continue;"
-                " otherwise, explain your requested changed.\n\n"
-            )
-            if user_input.strip() == "y":
-                # Just continue
-                result = part_4_graph.invoke(
-                    None,
-                    config,
-                )
-            else:
-                # Satisfy the tool invocation by
-                # providing instructions on the requested changes / change of mind
-                result = part_4_graph.invoke(
-                    {
-                        "messages": [
-                            ToolMessage(
-                                tool_call_id=event["messages"][-1].tool_calls[0]["id"],
-                                content=f"API call denied by user. Reasoning: '{user_input}'. Continue assisting, accounting for the user's input.",
-                            )
-                        ]
-                    },
-                    config,
-                )
-        
-        # Ensure the result contains the required fields
-        # if "messages" not in result and "dialog_state" not in result:
-        #     raise ValueError("Result must contain 'messages' or 'dialog_state'")
-        
-        return result
-
-    def invoke(self, input_data: Dict[str, List[Union[HumanMessage, AIMessage, SystemMessage]]], config: dict) -> Union[AIMessage, str]:
-        thread_id = str(uuid.uuid4())
-        config = {"configurable": {"thread_id": thread_id}}
-        return self.run(input_data, config)
+            _print_event(event, set())
+        return self.graph.get_state(config)
 
 # Instantiate the Runnable class
 runnable_instance = ChatRunnable()

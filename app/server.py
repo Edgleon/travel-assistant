@@ -1,4 +1,5 @@
 from fastapi import FastAPI, WebSocket
+from fastapi.responses import RedirectResponse
 from langserve import add_routes
 from langgraph.graph import StateGraph
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
@@ -7,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from graph import runnable_instance as graph, part_4_graph
 from state import State
+from assistants.primary import assistant_runnable
 from utilities import _print_event
 import uuid
 import uvicorn
@@ -31,6 +33,10 @@ builder = StateGraph(State)
 _printed = set()
 
 #part_4_graph = builder.compile()
+
+@app.get("/")
+async def redirect_root_to_docs():
+    return RedirectResponse("/docs")
 
 # @app.websocket("/chat")
 # # async def redirect_root_to_docs():
@@ -60,15 +66,7 @@ _printed = set()
 #             result = graph.invoke(
 #                 {
 #                     "messages": [
-#                         ToolMessage(
-#                             tool_call_id=event["messages"][-1].tool_calls[0]["id"],
-#                             content=f"API call denied by user. Reasoning: '{user_input}'. Continue assisting, accounting for the user's input.",
-#                         )
-#                     ]
-#                 },
-#                 config,
-#             )        
-#         await websocket.send_text(result["messages"])
+#                         ToolMessage(part_1_toolsext(result["messages"])
 
 app.add_middleware(
     CORSMiddleware,
@@ -81,13 +79,14 @@ app.add_middleware(
 
 # Edit this to add the chain you want to add
 # unnable = part_4_graph.with_types(input_type=ChatInputType, output_type=dict)
+from langserve.serialization import serialize
+
 add_routes(
     app,
-    part_4_graph,
+    graph.with_types(input_type=ChatInputType, output_type=dict),
     path="/chat",
-    enable_feedback_endpoint=True,
-    enable_public_trace_link_endpoint=True,
     playground_type="default",
+    serializer=serialize,
 )
 print("starting server...")
 
