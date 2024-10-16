@@ -81,12 +81,12 @@ def get_hotel_info(
     """
     url = f'{os.getenv("CTS_API_V1")}/hotel/{hotelId}/'
 
-    # ctsToken = os.getenv("CTS_TOKEN")
-    # headers = {'Authorization': f'token {ctsToken}'}
-    # json = {'townId': townId, 'checkin': checkin_date, 'checkout': checkout_date, 'rooms': [{'adults': adults, 'children': children, 'infants': infants, 'ages': ages}], 'currency': currency}
-    # response = requests.post(url, json=json, headers=headers)
-    # result = response.json()
-    return #result
+    ctsToken = os.getenv("CTS_TOKEN")
+    headers = {'Authorization': f'token {ctsToken}'}
+    json = {'townId': townId, 'checkin': checkin_date, 'checkout': checkout_date, 'rooms': [{'adults': adults, 'children': children, 'infants': infants, 'ages': ages}], 'currency': currency}
+    response = requests.post(url, json=json, headers=headers)
+    result = response.json()
+    return result
 
 @tool
 def get_town_id_for_hotels(townName: str) -> List[Dict]:
