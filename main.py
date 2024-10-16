@@ -26,14 +26,14 @@ async def chat(message: Message):
     # Configuración y ejecución del grafo
     config = {"configurable": {"thread_id": thread_id}}
     user_input = {"messages": ("user", conversation_history)}
-    #_printed = set()
+    _printed = set()
     try:
         # Unncoment for debug
-        #events = part_4_graph.stream(
-        #    {"messages": [{"role": "user", "type": "text", "content": message.content}]}, config, stream_mode="values"
-        #)
-        #for event in events:
-        #    _print_event(event, _printed)
+        events = part_4_graph.stream(
+            {"messages": [{"role": "user", "type": "text", "content": message.content}]}, config, stream_mode="values"
+        )
+        for event in events:
+            _print_event(event, _printed)
 
         # Invoke the graph with the updated conversation history
         result = part_4_graph.invoke({"messages": conversation_history}, config)
@@ -48,4 +48,4 @@ async def chat(message: Message):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+    uvicorn.run(app, host="127.0.0.1", port=8100)
