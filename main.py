@@ -6,9 +6,19 @@ import uuid
 from state import State
 from langchain_core.messages import ToolMessage, AIMessage
 from utilities import _print_event
+from fastapi.middleware.cors import CORSMiddleware
 
 # Crear la aplicación FastAPI
 app = FastAPI()
+
+# Configurar CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Permite todas las fuentes
+    allow_credentials=True,
+    allow_methods=["*"],  # Permite todos los métodos (GET, POST, etc.)
+    allow_headers=["*"],  # Permite todos los encabezados
+)
 
 # Inicializar el grafo de estados y otros recursos necesarios
 thread_id = str(uuid.uuid4())

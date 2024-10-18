@@ -111,31 +111,24 @@ def get_town_id_for_hotels(townName: str) -> List[Dict]:
 #TODO
 @tool
 def create_hotel_booking(
-    name: str,
-    last_name: str,
-    passport_or_dni: str,
-    email: str,
-    phone: str,
-    country: str,
-    notes: str,
-    currency: str,
-    adults: int,
-    children: int,
-    infants: int,
-    total_amount: int,
-    total_net_amount: int,
-    total_collect_amount: int,
-    user: int,
-    hotel_id: int,
-    hotel_name: str,
-    inventory_id: int,
-    room_name: str,
-    rate_id: int,
-    travel_date: str,
-    checkout_date: str,
-    city: str,
-    cover_image: str,
-    room_amount: int
+    hotelId: str,
+    townId: Optional[str] = None,
+    checkin_date: Optional[str] = None,
+    checkout_date: Optional[str] = None,
+    adults: Optional[int] = 1,
+    children: Optional[int] = 0,
+    infants: Optional[int] = 0,
+    ages: Optional[list[int]] = [],
+    currency: Optional[int] = 1,
+    roomId: Optional[str] = None,
+    name: Optional[str] = None,
+    lastName: Optional[str] = None,
+    email: Optional[str] = None,
+    phone: Optional[str] = None,
+    passportOrDni: Optional[str] = None,
+    country: Optional[str] = None,
+    referenceNumber: Optional[str] = None,
+    notes: Optional[str] = None,
 ) -> dict:
     """
     Create a hotel booking.
@@ -147,10 +140,34 @@ def create_hotel_booking(
     cts_token = os.getenv("CTS_TOKEN")
     headers = {'Authorization': f'token {cts_token}'}
 
+    bookingData = get_availability_for_hotels(townId=townId, checkin_date=checkin_date, checkout_date=checkout_date, adults=adults, children=children, infants=infants, ages=ages, currency=currency)
+    hotelName = bookingData['data']['hotelName']
+    ammenities = bookingData['data']['ammenities']
+    concepts = ', '.join([amenity['name'] for amenity in ammenities])
+    user = os.getenv("CTS_USER")
+    availability = bookingData['data']['availability']
+    roomAvailability = next((availability for availability in bookingData['data']['availability'] if availability['rooms']['roomtype_id'] == roomId), None)
+    
+    if not roomAvailability:
+        raise ValueError("Room with the specified roomId not found in availability data.")
+    
+    inventory_id = roomAvailability['rooms']['inventory_id']
+    roomName = roomAvailability['rooms']['roomtype']
+    # rate_id = roomAvailability['rooms']['rate_id']
+    # room_amount = roomAvailability['rooms']['amount']
+    # total_amount = roomAvailability['total_amount']
+    # total_net_amount = roomAvailability['total_net_amount']
+    # total_collect_amount = roomAvailability['total_collect_amount']
+    # hotel_id = roomAvailability['hotel_id']
+    # #hotel_name = roomAvailability['hotel_name']
+    # city = roomAvailability['city']
+    # travel_date = roomAvailability['travel_date']
+    # cover_image = roomAvailability['cover_image']
+
     payload = {
         "name": name,
-        "last_name": last_name,
-        "passport_or_dni": passport_or_dni,
+        "last_name": lastName,
+        "passport_or_dni": passportOrDni,
         "email": email,
         "phone": phone,
         "country": country,
@@ -162,16 +179,16 @@ def create_hotel_booking(
         "total_amount": total_amount,
         "total_net_amount": total_net_amount,
         "total_collect_amount": total_collect_amount,
-        "reference_number": "",
+        "reference_number": referenceNumber,
         "user": user,
         "booking_availability": [
             {
-                "hotelId": hotel_id,
-                "hotelName": hotel_name,
+                "hotelId": hotelId,
+                "hotelName": hotelName,
                 "inventoryIds": [
                     {
                         "inventoryId": inventory_id,
-                        "roomName": room_name,
+                        "roomName": roomName,
                         "rateIds": [
                             rate_id
                         ],
@@ -189,11 +206,11 @@ def create_hotel_booking(
                 {
                     "dtt_hotel_code": hotel_id,
                     "dtt_hotel_markup": 11,
-                    "glosa_visualizer": hotel_name,
-                    "glosa_soptur": hotel_name,
+                    "glosa_visualizer": hotelName,
+                    "glosa_soptur": hotelName,
                     "provider": "DTT",
                     "city": city,
-                    "concepts": "Wifi, Breakfast, Parking, Room Service, TV, Safe, Laundry",
+                    "concepts": concepts,
                     "country": city,
                     "service_type": "hotel",
                     "adults": adults,
@@ -270,7 +287,7 @@ def create_hotel_booking(
                     ],
                     "id": 3,
                     "nights": 1,
-                    "hotelName": hotel_name,
+                    "hotelName": hotelName,
                     "roomType": room_name,
                     "subTotalPrice": total_net_amount,
                     "taxPrice": total_amount - total_net_amount,
@@ -320,7 +337,6 @@ def update_hotel_booking() -> List[Dict]:
     # response = requests.put(url, headers=headers)
     return #response.json()
 
-#TODO
 @tool
 def cancel_hotel_booking(bookingId: str) -> List[Dict]:
     """
@@ -335,12 +351,15 @@ def cancel_hotel_booking(bookingId: str) -> List[Dict]:
     Example:
     cancel_hotel_booking('1234')
     """
-    # url = f'https://apibooking.ctsturismo.com/api/booking/{bookingId}/'
-    # ctsToken = os.getenv("CTS_TOKEN")
-    # headers = {'Authorization': f'token {ctsToken}'}
-    # response = requests.delete(url, headers=headers)
-    return# response.json()
-
+    url = f'https://apibooking.ctsturismo.com/api/booking/{bookingId}/'
+    ctsToken = os.getenv("CTS_TOKEN")
+    headers = {'Authorization': f'token {ctsToken}'}
+    json = {'file_number': bookingId}
+    response = requests.post(url, json=json, headers=headers)
+    if response.status_code == 200:
+        return f'La reserva con el número {bookingId} ha sido cancelada con éxito.'
+    else:
+        return 'No se ha podido cancelar la reserva.'
 
 # Helpers
 
