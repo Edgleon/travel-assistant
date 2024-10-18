@@ -1,6 +1,8 @@
 from langchain_core.tools import tool
 import os
 import requests
+import json
+import datetime
 from typing import Optional, List, Dict
 
 @tool
@@ -111,7 +113,7 @@ def get_town_id_for_hotels(townName: str) -> List[Dict]:
 #TODO
 @tool
 def create_hotel_booking(
-    hotelId: str,
+    hotelId: int,
     townId: Optional[str] = None,
     checkin_date: Optional[str] = None,
     checkout_date: Optional[str] = None,
@@ -120,7 +122,7 @@ def create_hotel_booking(
     infants: Optional[int] = 0,
     ages: Optional[list[int]] = [],
     currency: Optional[int] = 1,
-    roomId: Optional[str] = None,
+    roomId: Optional[int] = None,
     name: Optional[str] = None,
     lastName: Optional[str] = None,
     email: Optional[str] = None,
@@ -133,26 +135,103 @@ def create_hotel_booking(
     """
     Create a hotel booking.
 
+    Args:
+    hotelId: The hotel ID.
+    townId: The town ID.
+    checkin_date (string): The check-in date, in 'dd-mm-YYY' format.
+    checkout_date (string): The check-out date, in 'dd-mm-YYY' format.
+    adults: The number of adults. Default is 1.
+    children: The number of children. Default is 0.
+    infants: The number of infants. Default is 0.
+    ages: The ages of the children. Default is [].
+    currency: The currency. 1 is for CLP, 2 for USD. Default is 1.
+    roomId: The room ID.
+    name: The name of the guest.
+    lastName: The last name of the guest.
+    email: The email of the guest.
+    phone: The phone number of the guest.
+    passportOrDni: The passport or DNI of the guest.
+    country: The country of the guest.
+    referenceNumber: The reference number.
+    notes: The notes.
+
     Returns:
-    The booking response as a dictionary.
+    The booking response as a string with the booking ID and
+    a link to the booking detail.
     """
     url = f'{os.getenv("CTS_API_V1")}/booking/'
     cts_token = os.getenv("CTS_TOKEN")
     headers = {'Authorization': f'token {cts_token}'}
 
-    bookingData = get_availability_for_hotels(townId=townId, checkin_date=checkin_date, checkout_date=checkout_date, adults=adults, children=children, infants=infants, ages=ages, currency=currency)
-    hotelName = bookingData['data']['hotelName']
-    ammenities = bookingData['data']['ammenities']
+    hotelAvailability = get_hotel_info(hotelId=hotelId, townId=townId, checkin_date=checkin_date, checkout_date=checkout_date, adults=adults, children=children, infants=infants, ages=ages, currency=currency)
+    if not hotelAvailability:
+        raise ValueError("No availabilty found for this hotel.")
+    hotelData = hotelAvailability['data']
+    townName = hotelData['town']['name']
+    hotelName = hotelData['name']
+    ammenities = hotelData['ammenities']
     concepts = ', '.join([amenity['name'] for amenity in ammenities])
-    user = os.getenv("CTS_USER")
-    availability = bookingData['data']['availability']
-    roomAvailability = next((availability for availability in bookingData['data']['availability'] if availability['rooms']['roomtype_id'] == roomId), None)
-    
-    if not roomAvailability:
+    user = 1
+    currency = 'CLP' if currency == 1 else 'USD'
+    #availability = next((availability for availability in hotelData['availability'] if availability['rooms']['roomtype_id'] == roomId), None)
+    avail = hotelData['availability']
+    for dispo in avail:
+        for room in dispo['rooms']:
+            if room['roomtype_id'] == roomId:
+                availability = dispo
+    if not availability:
         raise ValueError("Room with the specified roomId not found in availability data.")
+    markup = availability['markup'][0]
+    bookingAvailabilityList = []
+    availabilityDetails = availability['details']
+    primary_image_url = next((image["url"] for image in hotelData["images"] if image["is_primary"]), None)
+    rooms = availability['rooms']
+    #convert checkin_date and checkout_date from 'YYY-mm-dd' to 'dd-mm-YYY'
+    checkin_date = datetime.strptime(checkin_date, '%Y-%m-%d').strftime('%d-%m-%Y')
+    checkout_date = datetime.strptime(checkout_date, '%Y-%m-%d').strftime('%d-%m-%Y')
     
-    inventory_id = roomAvailability['rooms']['inventory_id']
-    roomName = roomAvailability['rooms']['roomtype']
+    # Collecting booking information
+    for room in rooms:
+        inventory_ids = []
+        for detail in room['details']:
+            inventory_id = detail['inventory_id']
+            rate_id = detail['rate_id']
+            room_name = room['roomtype']
+            inventory_ids.append({
+                'inventoryId': inventory_id,
+                'roomName': room_name,
+                'rateIds': [rate_id],
+                'adults': [room['adults']],
+                'amount': 1  # Assuming one room per inventory
+            })
+
+        bookingAvailabilityList.append({
+            'hotelId': hotelData['id'],
+            'hotelName': hotelData['name'],
+            'inventoryIds': inventory_ids
+        })
+
+    # Extracting pricing and guest details
+    priceBase = availability['price_base']
+    priceValue = availability['price_value']
+    priceValueWithTax = availability['price_value_with_tax']
+    additionalBase = availability['additional_base']
+    additionalTotalBase = availability['additional_total_base']
+    additionalValueWithTax = availability['additional_value_with_tax']
+    
+    # Defining payload details
+    payload_detail = [
+        {
+            "date": detail['date'],
+            "total": detail['total'],
+            "total_base": detail['total_base'],
+            "total_with_tax": detail['total_with_tax'],
+            "rooms": detail['rooms']
+        } for detail in availabilityDetails
+    ]
+
+    #inventory_id = roomAvailability['rooms']['inventory_id']
+    #roomName = roomAvailability['rooms']['roomtype']
     # rate_id = roomAvailability['rooms']['rate_id']
     # room_amount = roomAvailability['rooms']['amount']
     # total_amount = roomAvailability['total_amount']
@@ -176,148 +255,89 @@ def create_hotel_booking(
         "adults": adults,
         "children": children,
         "infants": infants,
-        "total_amount": total_amount,
-        "total_net_amount": total_net_amount,
-        "total_collect_amount": total_collect_amount,
+        "total_amount": priceValueWithTax,
+        "total_net_amount": priceValue,
+        "total_collect_amount": priceValueWithTax,
         "reference_number": referenceNumber,
         "user": user,
-        "booking_availability": [
-            {
-                "hotelId": hotelId,
-                "hotelName": hotelName,
-                "inventoryIds": [
-                    {
-                        "inventoryId": inventory_id,
-                        "roomName": roomName,
-                        "rateIds": [
-                            rate_id
-                        ],
-                        "adults": [
-                            adults
-                        ],
-                        "amount": room_amount
-                    }
-                ]
-            }
-        ],
+        "booking_availability": bookingAvailabilityList,
         "cart_items": {
             "count": 1,
             "hotels": [
                 {
-                    "dtt_hotel_code": hotel_id,
-                    "dtt_hotel_markup": 11,
+                    "dtt_hotel_code": hotelId,
+                    "dtt_hotel_markup": markup,
                     "glosa_visualizer": hotelName,
                     "glosa_soptur": hotelName,
                     "provider": "DTT",
-                    "city": city,
+                    "city": townName,
                     "concepts": concepts,
-                    "country": city,
+                    "country": townName,
                     "service_type": "hotel",
                     "adults": adults,
                     "children": children,
                     "infants": infants,
-                    "adult_total_amount": total_amount,
-                    "children_total_amount": 0,
-                    "amount": total_amount,
-                    "net_amount": total_net_amount,
-                    "hotel_additional_total": 0,
-                    "hotel_additional_base": 0,
-                    "hotel_total": total_net_amount,
-                    "travel_date": travel_date,
+                    "adult_total_amount": priceValueWithTax,
+                    "children_total_amount": additionalValueWithTax,
+                    "amount": priceValueWithTax,
+                    "net_amount": priceValue,
+                    "pull_inventory": "false",
+                    "hotel_additional_total": additionalTotalBase,
+                    "hotel_additional_base": additionalBase,
+                    "hotel_total": priceBase,
+                    "travel_date": checkin_date,
                     "checkout": checkout_date,
-                    "cover_image": cover_image,
-                    "payload_detail": [
-                        {
-                            "date": travel_date,
-                            "total": total_net_amount,
-                            "total_base": int(total_net_amount * 0.89),
-                            "total_with_tax": total_amount,
-                            "additional_base": 0,
-                            "additional_total_base": 0,
-                            "additional_total_with_tax": 0,
-                            "rooms": [
-                                room_name
-                            ]
-                        }
-                    ],
+                    "cover_image": primary_image_url,
+                    "payload_detail": payload_detail,
                     "dtt_fee_percent": 0,
                     "dtt_fee_value": 0,
                     "total_dtt": 0,
-                    "rooms": [
-                        {
-                            "adults": adults,
-                            "children": children,
-                            "ages": "",
-                            "discount_rate": 0,
-                            "mealplan": "Breakfast Included",
-                            "mealplan_id": 2,
-                            "operator": "CTS Turismo",
-                            "cancellation_type": "Free Cancelation",
-                            "cancellation_id": 1,
-                            "operator_id": 5,
-                            "policies": "",
-                            "currency_id": 1,
-                            "roomtype": room_name,
-                            "roomtype_id": 900,
-                            "size": "28 mts²",
-                            "bed_options": "2 Individuales",
-                            "amount": room_amount,
-                            "pull_inventory": False,
-                            "room_for": 0,
-                            "replaceMarkup": 1,
-                            "rateplan_name": "CTS - CONFIDENCIAL CONV",
-                            "details": [
-                                {
-                                    "date": travel_date,
-                                    "rateplan": "CTS - CONFIDENCIAL CONV",
-                                    "rateplan_id": 16465,
-                                    "guest": adults,
-                                    "markup": 11,
-                                    "base_value": int(total_net_amount * 0.89),
-                                    "total": total_net_amount,
-                                    "total_with_tax": total_amount,
-                                    "inventory_id": inventory_id,
-                                    "rate_id": rate_id,
-                                    "additional_base": 0,
-                                    "additional_total_base": 0,
-                                    "additional_total_with_tax": 0
-                                }
-                            ]
-                        }
-                    ],
+                    "rooms": rooms,
                     "id": 3,
-                    "nights": 1,
+                    "nights": 2,
                     "hotelName": hotelName,
                     "roomType": room_name,
-                    "subTotalPrice": total_net_amount,
-                    "taxPrice": total_amount - total_net_amount,
-                    "totalPrice": total_amount,
-                    "serviceUrl": f"/results/hotels/{hotel_id}?townId=51&checkin={travel_date}&checkout={checkout_date}&rooms=[{{%22adults%22:{adults},%22children%22:{children},%22infants%22:{infants},%22ages%22:[]}}]#rooms",
+                    "subTotalPrice": priceValue,
+                    "taxPrice": priceValueWithTax - priceValue,
+                    "totalPrice": priceValueWithTax,
+                    "serviceUrl": f"/results/hotels/{hotelId}?townId=51&checkin={checkin_date}&checkout={checkout_date}&rooms=[{{%22adults%22:{adults},%22children%22:{children},%22infants%22:{infants},%22ages%22:[]}}]#rooms",
                     "item_extras": {
-                        "address": "Vecinal 40, 7550226 Las Condes, Región Metropolitana, Chile",
-                        "description": "Ubicado en la estación de metro El Golf, barrio que constituye el principal centro de negocios de la capital, y que se caracteriza por una variada de oferta comercial y gastronómica.",
-                        "checkinHour": "14:00:00",
-                        "checkoutHour": "12:00:00",
-                        "hotelPhone": "2663 3152"
+                        "address": hotelData['address'],
+                        "description": hotelData['policies_description'],
+                        "checkinHour": hotelData['checkin'],
+                        "checkoutHour": hotelData['checkout'],
+                        "hotelPhone": hotelData['phone']
                     },
-                    "cancellationTime": 48,
+                    "cancellationTime": hotelData['cancellation'],
                     "additional_information": notes
                 }
             ],
             "services": [],
             "packages": [],
-            "createdAt": "2024-10-15T23:27:39.469Z",
+            "createdAt": datetime.now().isoformat(),
             "discount": {}
         },
         "language": "es",
         "company": None
     }
-
+    # convert payload to json
+    payload = json.dumps(payload)
+    print(f"payload: {payload}")
     response = requests.post(url, headers=headers, json=payload)
-    booking_id = response.json()['file_number']
-    slug = response.json()['slug']
-    booking_link = f'os.getenv("CTS_API_V1")/bookings/{slug}'
-    return f'Se ha realizado la reserva con éxito. El número de reserva es {booking_id}. Puede ver los detalles de la reserva en el siguiente enlace: {booking_link}'
+    
+    if response.content:
+        response_json = response.json()
+        print(f"response: {response_json}")
+        booking_id = response_json['file_number']
+        slug = response_json['slug']
+        booking_link = os.getenv("CTS_API_V1") + f'/bookings/{slug}'
+        return f'Se ha realizado la reserva con éxito. El número de reserva es {booking_id}. Puede ver los detalles de la reserva en el siguiente enlace: {booking_link}'
+    else:
+        print("Empty response received")
+        return "Error: Empty response received from the server"
+    #slug = response.json()['slug']
+    #booking_link = f'os.getenv("CTS_API_V1")/bookings/{slug}'
+    #return f'Se ha realizado la reserva con éxito. El número de reserva es {booking_id}. Puede ver los detalles de la reserva en el siguiente enlace: {booking_link}'
 
 #TODO
 @tool
