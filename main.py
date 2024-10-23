@@ -84,11 +84,11 @@ async def chat(websocket: WebSocket):
 
             try:
                 # Unncoment for debug
-                events = part_4_graph.stream(
-                    {"messages": [{"role": "user", "type": "text", "content": data}]}, config, stream_mode="values"
-                )
-                for event in events:
-                    _print_event(event, _printed)
+                #events = part_4_graph.stream(
+                #    {"messages": [{"role": "user", "type": "text", "content": data}]}, config, stream_mode="values"
+                #)
+                #for event in events:
+                #    _print_event(event, _printed)
 
                 # Ejecución del grafo con el historial de la conversación
                 result = part_4_graph.invoke({"messages": conversation_history}, config)
