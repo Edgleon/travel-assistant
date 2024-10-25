@@ -104,6 +104,10 @@ def get_town_id_for_hotels(townName: str) -> List[Dict]:
     Example:
     get_city_id('santiago')
     """
+
+    # Set townName to uppercase and replace written accents
+    townName = townName.upper().replace('Á', 'A').replace('É', 'E').replace('Í', 'I').replace('Ó', 'O').replace('Ú', 'U')
+
     url = f'https://apibooking.ctsturismo.com/api/city/dtt/?q={townName}'
     ctsToken = os.getenv("CTS_TOKEN")
     headers = {'Authorization': f'token {ctsToken}'}
