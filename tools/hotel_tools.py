@@ -2,7 +2,7 @@ from langchain_core.tools import tool
 import os
 import requests
 import json
-import datetime
+from datetime import date, datetime
 from typing import Optional, List, Dict
 
 @tool
@@ -127,14 +127,14 @@ def create_hotel_booking(
     ages: Optional[list[int]] = [],
     currency: Optional[int] = 1,
     roomId: int = None,
-    name: Optional[str] = "",
-    lastName: Optional[str] = "",
-    email: Optional[str] = "",
-    phone: Optional[str] = "",
-    passportOrDni: Optional[str] = "",
+    name: Optional[str] = '',
+    lastName: Optional[str] = '',
+    email: Optional[str] = '',
+    phone: Optional[str] = '',
+    passportOrDni: Optional[str] = '',
     country: Optional[str] = None,
-    referenceNumber: Optional[str] = "",
-    notes: Optional[str] = "",
+    referenceNumber: Optional[str] = '',
+    notes: Optional[str] = '',
 ) -> dict:
     """
     Create a hotel booking.

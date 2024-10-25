@@ -43,7 +43,7 @@ book_hotel_prompt = ChatPromptTemplate.from_messages(
     ]
 ).partial(time=datetime.now())
 
-book_hotel_safe_tools = [get_availability_for_hotels, get_town_id_for_hotels, get_hotel_info, update_hotel_booking, cancel_hotel_booking]
+book_hotel_safe_tools = [get_availability_for_hotels, get_town_id_for_hotels, get_hotel_info, create_hotel_booking, update_hotel_booking, cancel_hotel_booking]
 book_hotel_sensitive_tools = []
 book_hotel_tools = book_hotel_safe_tools + book_hotel_sensitive_tools
 book_hotel_runnable = book_hotel_prompt | llm.bind_tools(
