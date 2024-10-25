@@ -114,7 +114,6 @@ def get_town_id_for_hotels(townName: str) -> List[Dict]:
     response = requests.get(url, headers=headers)
     return response.json()[0]['dtt_id']
 
-#TODO
 @tool
 def create_hotel_booking(
     hotelId: int,
@@ -371,8 +370,6 @@ def update_hotel_booking(
             bookingUpdate['reference_number'] = referenceNumber
 
         response = requests.put(url, json=bookingUpdate, headers=headers).json()
-        print({'REQUEST: ': bookingUpdate})
-        print({'RESPONSE: ': response})
         if response['file_number']:
             return f'La reserva con el número {bookingId} ha sido actualizada con éxito. Puede ver los detalles de la reserva en el siguiente enlace: {os.getenv("FRONT_HOST")}/bookings/{bookingSlug}'
         else:
@@ -394,15 +391,18 @@ def cancel_hotel_booking(bookingId: str) -> List[Dict]:
     Example:
     cancel_hotel_booking('1234')
     """
-    url = f'https://apibooking.ctsturismo.com/api/booking/{bookingId}/'
-    ctsToken = os.getenv("CTS_TOKEN")
-    headers = {'Authorization': f'token {ctsToken}'}
-    json = {'file_number': bookingId}
-    response = requests.post(url, json=json, headers=headers)
-    if response.status_code == 200:
-        return f'La reserva con el número {bookingId} ha sido cancelada con éxito.'
-    else:
-        return 'No se ha podido cancelar la reserva.'
+    try:
+        url = f'{os.getenv("CTS_API_V1")}/booking/cancel/'
+        ctsToken = os.getenv("CTS_TOKEN")
+        headers = {'Authorization': f'token {ctsToken}'}
+        json = {'file_number': bookingId}
+        response = requests.post(url, json=json, headers=headers)
+        if response:
+            return f'La reserva con el número {bookingId} ha sido cancelada con éxito.'
+        else:
+            return 'No se ha podido cancelar la reserva.'
+    except Exception as e:
+        return f'Error: {e}'
 
 # Helpers
 
