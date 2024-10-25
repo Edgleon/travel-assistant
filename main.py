@@ -66,6 +66,7 @@ async def chat(websocket: WebSocket):
     graph = builder.compile()
     config = {"configurable": {"thread_id": thread_id}}
     conversation_history = []
+    last_message = []
 
     # Guardar la configuración del grafo y la historia de la conversación para la sesión
     sessions[thread_id] = {"graph": part_4_graph, "config": config, "conversation_history": conversation_history}
@@ -74,32 +75,19 @@ async def chat(websocket: WebSocket):
         while True:
             # Recibir el mensaje del usuario a través del WebSocket
             data = await websocket.receive_text()
-
-            # Añadir el mensaje del usuario al historial de conversación
-            conversation_history.append({"role": "user", "type": "text", "content": data})
-
-            # Configuración y ejecución del grafo
-            user_input = {"messages": ("user", conversation_history)}
             _printed = set()
 
             try:
-                # Unncoment for debug
-                #events = part_4_graph.stream(
-                #    {"messages": [{"role": "user", "type": "text", "content": data}]}, config, stream_mode="values"
-                #)
-                #for event in events:
-                #    _print_event(event, _printed)
-
-                # Ejecución del grafo con el historial de la conversación
-                result = part_4_graph.invoke({"messages": conversation_history}, config)
-
-                # Añadir la respuesta del asistente al historial de la conversación
-                assistant_response = result['messages'][-1].content
-                conversation_history.append({"role": "assistant", "type": "text", "content": assistant_response})
-
-                # Enviar la respuesta al usuario a través del WebSocket
-                await websocket.send_text(assistant_response)
-
+                events = part_4_graph.stream(
+                    {"messages": [{"role": "user", "type": "text", "content": data}]}, config, stream_mode="values"
+                )
+                for event in events:
+                    _print_event(event, _printed)
+                    for message in event.get('messages', []):
+                        if isinstance(message, AIMessage) and message.content:
+                            if message.content not in last_message:
+                                await websocket.send_text(message.content)
+                                last_message.append(message.content)
             except Exception as e:
                 await websocket.send_text(f"Error: {str(e)}")
     except Exception as e:
