@@ -327,23 +327,54 @@ def create_hotel_booking(
         print(f"Error: {e}")
         return f"Error: {e}"
 
-#TODO
 @tool
-def update_hotel_booking() -> List[Dict]:
+def update_hotel_booking(
+        bookingId: str, 
+        additionalInformation: Optional[str] = '',
+        notes: Optional[str] = '',
+        referenceNumber: Optional[str] = ''
+        ) -> list[dict]:
     """
     Update a hotel booking.
 
     Returns:
     The booking ID.
 
+    Args:
+    bookingId: The booking ID.
+    additionalInformation: Any comments or remarks addressed to the hotel.
+    notes: Any comments or remarks addressed to the booking customer or CTS Turismo itself.
+    referenceNumber: The reference number.
+
     Example:
-    update_hotel_booking()
+    update_hotel_booking('1234', additionalInformation='Room with a view', flightNumber='1234', notes='Late check-in', referenceNumber='1234')
     """
-    # url = 'https://apibooking.ctsturismo.com/api/booking/'
-    # ctsToken = os.getenv("CTS_TOKEN")
-    # headers = {'Authorization': f'token {ctsToken}'}
-    # response = requests.put(url, headers=headers)
-    return #response.json()
+    try:
+        bookingDetails = get_booking_details(bookingId)
+        if bookingId not in bookingDetails['file_number']:
+            return "No se ha encontrado la reserva."
+        bookingSlug = bookingDetails['slug']
+        bookingUpdate = {}
+        ctsToken = os.getenv("CTS_TOKEN")
+        headers = {'Authorization': f'token {ctsToken}', 'origin': 'localhost'}
+        if additionalInformation != "":
+            url = f'{os.getenv("CTS_API_V1")}/booking/item/{bookingDetails["items"][0]["id"]}/'
+            bookingUpdate['additional_information'] = additionalInformation
+            bookingUpdate['flight_number'] = ''
+        if notes != "" or referenceNumber != '':
+            url = f'{os.getenv("CTS_API_V1")}/booking/{bookingSlug}/'
+            bookingUpdate['notes'] = notes
+            bookingUpdate['reference_number'] = referenceNumber
+
+        response = requests.put(url, json=bookingUpdate, headers=headers).json()
+        print({'REQUEST: ': bookingUpdate})
+        print({'RESPONSE: ': response})
+        if response['file_number']:
+            return f'La reserva con el número {bookingId} ha sido actualizada con éxito. Puede ver los detalles de la reserva en el siguiente enlace: {os.getenv("FRONT_HOST")}/bookings/{bookingSlug}'
+        else:
+            return 'No se ha podido actualizar la reserva.'
+    except Exception as e:
+        return f'Error: {e}'
 
 @tool
 def cancel_hotel_booking(bookingId: str) -> List[Dict]:
@@ -426,4 +457,15 @@ def get_data_for_booking(
     json = {'townId': townId, 'checkin': checkin_date, 'checkout': checkout_date, 'rooms': [{'adults': adults, 'children': children, 'infants': infants, 'ages': ages}], 'currency': currency}
     response = requests.post(url, json=json, headers=headers)
     result = response.json()
+    return result
+
+def get_booking_details(bookingId) -> list[dict]:
+    url = f'{os.getenv("CTS_API_V1")}/booking/?showOnlyMyBookings=true'
+    ctsToken = os.getenv("CTS_TOKEN")
+    headers = {'Authorization': f'token {ctsToken}', 'origin': 'localhost'}
+    response = requests.get(url, headers=headers).json()
+    response = response['results']
+    for booking in response:
+        if booking['file_number'] == bookingId:
+            result = booking
     return result
