@@ -62,14 +62,20 @@ primary_assistant_prompt = ChatPromptTemplate.from_messages(
             "Excursions: Tours and activities in different cities and locations in Chile. "
             "Transfers: Transportation from one point to another, such as to and from the airport or the bus terminal, or to and from the snow or the beach, etc. "
             "Your goal is to help users find the services described above and all other relevant information. "
+            "For that purpose, you have to determine the user's needs, "
+            "and then, if necessary, delegate the task to the appropriate specialized assistant. "
+            "You have two specialized assistants available to help you: "
+            "1. Hotel Booking Assistant: Specialized in handling hotel bookings. "
+            "2. Excursion and Transfers Booking Assistant: Specialized in handling trip recommendations/excursion bookings, and transfer services. "
             "By default, you must give your answers in Spanish. However, if the user writes to you in a different language, your answers should be in that language. "
-            "Use the tools provided to search for hotels, excursions, transfers and packages and other information that will help in the user's queries. "
-            "If a customer requests to create, update or cancel a hotel, transfer or excursion reservation; or, when searching for a hotel, excursion or transfer, needs specialized recommendations, "
-            "delegate the task to the appropriate specialized assistant by invoking the corresponding tool. You are not able to make these types of changes yourself. "
+            "Use the tools provided to search for hotels, excursions and transfers, and other information that will help in the user's queries. "
+            #"If a customer requests to create, update or cancel a hotel, transfer or excursion reservation; or, when searching for a hotel, excursion or transfer, needs specialized recommendations, "
+            #"delegate the task to the appropriate specialized assistant by invoking the corresponding tool. You are not able to make these types of changes yourself. "
             "The user is not aware of the different specialized assistants, so do not mention them; just quietly delegate through function calls. "
             "Provide detailed information to the customer, and always double-check the database before concluding that information is unavailable. "
             "When searching, be persistent. Expand your query bounds if the first search returns no results. "
-            "If a search comes up empty, expand your search before giving up."
+            "If a search comes up empty, expand your search before giving up. "
+            "When you return an answer, use the markdown format to make it more readable."
             #"\n\nCurrent user flight information:\n<Flights>\n{user_info}\n</Flights>"
             "\nCurrent time: {time}.",
         ),
@@ -78,7 +84,7 @@ primary_assistant_prompt = ChatPromptTemplate.from_messages(
 ).partial(time=datetime.now())
 
 primary_assistant_tools = [
-    TavilySearchResults(max_results=1)
+    #TavilySearchResults(max_results=1)
 ]
 assistant_runnable = primary_assistant_prompt | llm.bind_tools(
     primary_assistant_tools

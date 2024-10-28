@@ -2,7 +2,7 @@ from langchain_core.tools import tool
 import os
 import requests
 import json
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from typing import Optional, List, Dict
 
 @tool
@@ -58,7 +58,7 @@ def get_hotel_info(
     currency: Optional[int] = 1,
 ) -> list[dict]:
     """
-    Get availability of hotels in a given town.
+    Get general information from a specific hotel.
 
     Args:
     hotelId: The hotel ID.
@@ -71,24 +71,141 @@ def get_hotel_info(
     ages: The ages of the children. Default is [].
     currency: The currency. Default is 1.
 
-    Use this function when the user wants to know more information of the hotel
-    or has already selected a hotel.
+    Use this function when the user wants to know information about a specific hotel.
 
     Returns:
-    A list of dictionaries containing the availability of
-    one hotel in the given hotel id.
+    A list of dictionaries containing the general information of a specific hotel.
+    With the following structure:
 
     Example:
-    get_availability(hotelId = '196', townId='1234', checkin_date='2022-12-01', checkout_date='2022-12-05', adults=2, children=1)    
+    get_availability(hotelId = '196', townId='1234', checkin_date='2022-12-01', checkout_date='2022-12-05', adults=2, children=1)
     """
-    url = f'{os.getenv("CTS_API_V1")}/hotel/{hotelId}/'
+    try:
+        url = f'{os.getenv("CTS_API_V1")}/hotel/{hotelId}/'
 
-    ctsToken = os.getenv("CTS_TOKEN")
-    headers = {'Authorization': f'token {ctsToken}'}
-    json = {'townId': townId, 'checkin': checkin_date, 'checkout': checkout_date, 'rooms': [{'adults': adults, 'children': children, 'infants': infants, 'ages': ages}], 'currency': currency}
-    response = requests.post(url, json=json, headers=headers)
-    result = response.json()
-    return result
+        ctsToken = os.getenv("CTS_TOKEN")
+        headers = {'Authorization': f'token {ctsToken}'}
+        json = {'townId': townId, 'checkin': checkin_date, 'checkout': checkout_date, 'rooms': [{'adults': adults, 'children': children, 'infants': infants, 'ages': ages}], 'currency': currency}
+        response = requests.post(url, json=json, headers=headers).json()
+        hotelData = response['data']
+        hotelId = hotelData['id']
+        hotelName = hotelData['name']
+        hotelAdress = hotelData['address']
+        hotelCategory = hotelData['category']['name']
+        hotelStars = hotelData['category']['rating']
+        hotelDescriptionSpanish = hotelData['policies_description']
+        hotelDescriptionEnglish = hotelData['policies_description_en']
+        hotelAmmenities = ', '.join([amenity['name'] for amenity in hotelData['ammenities']])
+
+        result = f'The hotel {hotelName} has the following information: \n\n'
+        result += f'Hotel ID: {hotelId} (Never show this item to the user, keep only for you)\n'
+        result += f'Hotel Name: {hotelName}\n'
+        result += f'Hotel Address: {hotelAdress}\n'
+        result += f'Hotel Category: {hotelCategory}\n'
+        result += f'Hotel Stars: {hotelStars}\n'
+        result += f'Hotel Description (Spanish): {hotelDescriptionSpanish}\n'
+        result += f'Hotel Description (English): {hotelDescriptionEnglish}\n'
+        result += f'(Use the hotel description acording to the language used by the user. If you are not sure, just translate to the related language)\n\n'
+        result += f'(Also, if necesary, translate the labels to the language used by the user)\n'
+        result += f'Hotel Ammenities: {hotelAmmenities}\n\n'
+
+        return result
+    except Exception as e:
+        return f'Error: {e}, in line {e.__traceback__.tb_lineno}'
+
+@tool
+def get_hotel_rooms_available(
+    hotelId: str,
+    townId: Optional[str] = None,
+    checkin_date: Optional[str] = None,
+    checkout_date: Optional[str] = None,
+    adults: Optional[int] = 1,
+    children: Optional[int] = 0,
+    infants: Optional[int] = 0,
+    ages: Optional[list[int]] = [],
+    currency: Optional[int] = 1,
+) -> list[dict]:
+    """
+    Get the rooms available in a given hotel.
+
+    Args:
+    hotelId: The hotel ID.
+    townId: The town ID.
+    checkin_date (string): The check-in date.
+    checkout_date (string): The check-out date.
+    adults: The number of adults. Default is 1.
+    children: The number of children. Default is 0.
+    infants: The number of infants. Default is 0.
+    ages: The ages of the children. Default is [].
+    currency: The currency. Default is 1.
+
+    Use this function when the user wants already has selected a hotel and wants to reserve a room.
+    You have to show the rooms available with the format below.
+
+    Returns:
+    A list of dictionaries containing the rooms available in
+    one hotel in the given hotel id, with the following format:
+
+    ROOM {NUMBER}:
+    Room Id
+    Room type or name
+    Price
+    Rate plan
+    Cancellation policy
+    Cancellation time
+    Meal plan
+    Adults
+    Bed options
+
+    Example:
+    get_availability(hotelId = '196', townId='1234', checkin_date='2022-12-01', checkout_date='2022-12-05', adults=2, children=1)
+    """
+    try:
+        url = f'{os.getenv("CTS_API_V1")}/hotel/{hotelId}/'
+
+        ctsToken = os.getenv("CTS_TOKEN")
+        headers = {'Authorization': f'token {ctsToken}'}
+        json = {'townId': townId, 'checkin': checkin_date, 'checkout': checkout_date, 'rooms': [{'adults': adults, 'children': children, 'infants': infants, 'ages': ages}], 'currency': currency}
+        response = requests.post(url, json=json, headers=headers).json()
+        hotelName = response['data']['name']
+        availability = response['data']['availability']
+        result = f'The rooms available in {hotelName} from {checkin_date} to {checkout_date} are: \n\n'
+        roomsList = []
+        i = 1
+        for available in availability:
+            currency = 'CLP' if available['currency_id'] == 1 else 'USD'
+            for room in available['rooms']:
+                if room['roomtype_id'] in roomsList:
+                    continue
+                result += f'ROOM {i}: \n'
+                roomId = room['roomtype_id']
+                result += f'Room Id: {roomId}\n'
+                roomType = room['roomtype']
+                result += f'Room type or name: {roomType}\n'
+                price = available['price_value_with_tax']
+                if currency == 'CLP':
+                    result += f'Price: ${price} {currency}, tax included.\n'
+                else:
+                    result += f'Price: ${price} {currency}.\n'
+                ratePlan = room['rateplan_name']
+                result += f'Rate plan: {ratePlan}\n'
+                cancellation = room['cancellation_type']
+                result += f'Cancellation policy: {cancellation}\n'
+                cancellationTime = datetime.strptime(checkin_date, '%Y-%m-%d') - timedelta(hours=response['data']['cancellation'])
+                result += f'Cancellation time: {cancellationTime.strftime("%d de %B de %Y")}\n'
+                mealPlan = room['mealplan']
+                result += f'Meal plan: {mealPlan}\n'
+                adults = room['adults']
+                result += f'Adults: {adults}\n'
+                bedOptions = room['bed_options']
+                size = room['size']
+                result += f'Bed options: {bedOptions} ({size})\n\n'
+                roomsList.append(roomId)
+                i += 1
+
+        return result
+    except Exception as e:
+        return f'Error: {e}, in line {e.__traceback__.tb_lineno}'
 
 @tool
 def get_town_id_for_hotels(townName: str) -> List[Dict]:
@@ -407,16 +524,26 @@ def cancel_hotel_booking(bookingId: str) -> List[Dict]:
 # Helpers
 
 def generate_hotels_availability_response(json_response):
-    result = []
+    result = f'The hotels available are the following: \n\n'
     for data in json_response['data']:
-        hotel = {}
-        hotel['hotelId'] = data['id']
-        hotel['hotelName'] = data['name']
-        hotel['stars'] = data['category']['rating']
-        hotel['hotelAddress'] = data['address']
+        hotelId = data['id']
+        hotelName = data['name']
+        rating = data['category']['rating']
+        stars = ''
+        for i in range(rating):
+            stars += '★'
+        hotelAddress = data['address']
         priceList = map(lambda x: x['price_value_with_tax'], data['availability'])
-        hotel['priceFrom'] = min(priceList)
-        result.append(hotel)
+        priceFrom = min(priceList)
+        ammenities = ', '.join([amenity['name'] for amenity in data['ammenities']])
+        result += f'Hotel ID: {hotelId}\n'
+        result += f'Hotel Name: {hotelName}\n'
+        result += f'Hotel Stars: {stars}\n'
+        result += f'Hotel Address: {hotelAddress}\n'
+        result += f'Price from: ${priceFrom}\n\n'
+        result += f'(The following information do not show to the user, keep only for you and use it to filter according to users needs)\n'
+        result += f'Hotel Category: {data["category"]["name"]}\n'
+        result += f'Hotel Ammenities: {ammenities}\n\n'
     return result
 
 def get_data_for_booking(
