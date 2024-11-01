@@ -36,7 +36,7 @@ def get_availability_for_hotels(
     Example:
     get_availability(townId='1234', checkin_date='2022-12-01', checkout_date='2022-12-05', adults=2, children=1)    
     """
-    url = 'https://apibooking.ctsturismo.com/api/hotel/'
+    url = f'{os.getenv("CTS_API_V1")}/hotel/'
 
     ctsToken = os.getenv("CTS_TOKEN")
     headers = {'Authorization': f'token {ctsToken}'}
