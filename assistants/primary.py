@@ -77,7 +77,8 @@ primary_assistant_prompt = ChatPromptTemplate.from_messages(
             "If a search comes up empty, expand your search before giving up. "
             "When you return an answer, use the markdown format to make it more readable."
             #"\n\nCurrent user flight information:\n<Flights>\n{user_info}\n</Flights>"
-            "\nCurrent time: {time}.",
+            "\nCurrent time: {time}. "
+            "If user doesn't provide a year, always assume is a future date. Never use past dates to search availability. ",
         ),
         ("placeholder", "{messages}"),
     ]

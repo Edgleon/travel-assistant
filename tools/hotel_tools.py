@@ -42,7 +42,7 @@ def get_availability_for_hotels(
     headers = {'Authorization': f'token {ctsToken}'}
     json = {'townId': townId, 'checkin': checkin_date, 'checkout': checkout_date, 'rooms': [{'adults': adults, 'children': children, 'infants': infants, 'ages': ages}], 'currency': currency}
     response = requests.post(url, json=json, headers=headers)
-    result = generate_hotels_availability_response(response.json())
+    result = generate_hotels_availability_response(response.json(), json)
     return result
 
 @tool
@@ -523,11 +523,12 @@ def cancel_hotel_booking(bookingId: str) -> List[Dict]:
 
 # Helpers
 
-def generate_hotels_availability_response(json_response):
+def generate_hotels_availability_response(json_response, payload):
     result = f'The hotels available are the following: \n\n'
     for data in json_response['data']:
         hotelId = data['id']
         hotelName = data['name']
+        townId = data['town_id']
         rating = data['category']['rating']
         stars = ''
         for i in range(rating):
@@ -536,11 +537,13 @@ def generate_hotels_availability_response(json_response):
         priceList = map(lambda x: x['price_value_with_tax'], data['availability'])
         priceFrom = min(priceList)
         ammenities = ', '.join([amenity['name'] for amenity in data['ammenities']])
+        link = f'{os.getenv("FRONT_HOST")}/travel-assistant/hotels/{hotelId}?townId={townId}&checkin={payload["checkin"]}&checkout={payload["checkout"]}&rooms=[{{"adults":{payload["rooms"][0]["adults"]},"children":{payload["rooms"][0]["children"]},"infants":{payload["rooms"][0]["infants"]},"ages":{payload["rooms"][0]["ages"]}}}]'
         result += f'Hotel ID: {hotelId}\n'
         result += f'Hotel Name: {hotelName}\n'
         result += f'Hotel Stars: {stars}\n'
         result += f'Hotel Address: {hotelAddress}\n'
-        result += f'Price from: ${priceFrom}\n\n'
+        result += f'Price: From ${priceFrom}\n'
+        result += f'Click here to see details: {link}\n'
         result += f'(The following information do not show to the user, keep only for you and use it to filter according to users needs)\n'
         result += f'Hotel Category: {data["category"]["name"]}\n'
         result += f'Hotel Ammenities: {ammenities}\n\n'

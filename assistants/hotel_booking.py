@@ -60,7 +60,8 @@ book_hotel_prompt = ChatPromptTemplate.from_messages(
             "If you need more information or the customer changes their mind, escalate the task back to the main assistant. "
             "Remember that a booking isn't completed until after the relevant tool has successfully been used."
             "When you return an answer, use the python string format to make it more readable."
-            "\nCurrent time: {time}."
+            "\nCurrent time: {time}. "
+            "If user doesn't provide a year, always assume is a future date. Never use past dates to search availability. "
             '\n\nIf the user needs help, and none of your tools are appropriate for it, then "CompleteOrEscalate" the dialog to the host assistant.'
             " Do not waste the user's time. Do not make up invalid tools or functions."
             "\n\nSome examples for which you should CompleteOrEscalate:\n"

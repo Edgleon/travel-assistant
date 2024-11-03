@@ -86,7 +86,7 @@ async def chat(websocket: WebSocket):
                     for message in event.get('messages', []):
                         if isinstance(message, AIMessage) and message.content:
                             if message.content not in last_message:
-                                await websocket.send_text(message.content)
+                                await websocket.send_json(message.content)
                                 last_message.append(message.content)
             except Exception as e:
                 await websocket.send_text(f"Error: {str(e)}")
