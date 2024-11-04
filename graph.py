@@ -196,24 +196,3 @@ part_4_graph = builder.compile(
         "book_excursion_sensitive_tools",
     ],
 )
-
-# Define a Runnable class that meets the chat playground requirements
-class ChatRunnable(Runnable):
-    def invoke(self, input_data: Dict, config: Dict = None) -> Dict:
-        """Implement the abstract method 'invoke'."""
-        return self.run(input_data["messages"])
-    def __init__(self):
-        self.graph = part_4_graph
-        self.memory = memory
-
-    def run(self, messages: List[Union[HumanMessage, AIMessage, SystemMessage]]) -> Dict:
-        config = {"configurable": {"thread_id": str(uuid.uuid4())}}
-        events = self.graph.stream(
-            {"messages": messages}, config, stream_mode="values"
-        )
-        for event in events:
-            _print_event(event, set())
-        return self.graph.get_state(config)
-
-# Instantiate the Runnable class
-runnable_instance = ChatRunnable()

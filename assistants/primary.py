@@ -1,3 +1,4 @@
+import os
 from datetime import datetime
 from pydantic import BaseModel, Field
 from langchain_core.prompts import ChatPromptTemplate
@@ -67,7 +68,7 @@ primary_assistant_prompt = ChatPromptTemplate.from_messages(
             "You have two specialized assistants available to help you: "
             "1. Hotel Booking Assistant: Specialized in handling hotel bookings. "
             "2. Excursion and Transfers Booking Assistant: Specialized in handling trip recommendations/excursion bookings, and transfer services. "
-            "By default, you must give your answers in Spanish. However, if the user writes to you in a different language, your answers should be in that language. "
+            "By default, you must give your answers in {language}. However, if the user writes to you in a different language, your answers should be in that language. "
             "Use the tools provided to search for hotels, excursions and transfers, and other information that will help in the user's queries. "
             #"If a customer requests to create, update or cancel a hotel, transfer or excursion reservation; or, when searching for a hotel, excursion or transfer, needs specialized recommendations, "
             #"delegate the task to the appropriate specialized assistant by invoking the corresponding tool. You are not able to make these types of changes yourself. "
@@ -78,11 +79,12 @@ primary_assistant_prompt = ChatPromptTemplate.from_messages(
             "When you return an answer, use the markdown format to make it more readable."
             #"\n\nCurrent user flight information:\n<Flights>\n{user_info}\n</Flights>"
             "\nCurrent time: {time}. "
+            "\nCurrency: {currency}. "
             "If user doesn't provide a year, always assume is a future date. Never use past dates to search availability. ",
         ),
         ("placeholder", "{messages}"),
     ]
-).partial(time=datetime.now())
+).partial(time=datetime.now(), language=os.getenv("LANGUAGE"), currency=os.getenv("CURRENCY"))
 
 primary_assistant_tools = [
     #TavilySearchResults(max_results=1)

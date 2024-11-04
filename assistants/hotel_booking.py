@@ -5,6 +5,7 @@ from tools.hotel_tools import get_availability_for_hotels, get_town_id_for_hotel
 from datetime import datetime
 from langchain_openai import ChatOpenAI
 from dotenv import load_dotenv
+import os
 load_dotenv()
 
 llm = ChatOpenAI(model="gpt-4o", temperature=0)
@@ -61,6 +62,8 @@ book_hotel_prompt = ChatPromptTemplate.from_messages(
             "Remember that a booking isn't completed until after the relevant tool has successfully been used."
             "When you return an answer, use the python string format to make it more readable."
             "\nCurrent time: {time}. "
+            "\nCurrency: {currency}. "
+            "\nLanguage: {language}. "
             "If user doesn't provide a year, always assume is a future date. Never use past dates to search availability. "
             '\n\nIf the user needs help, and none of your tools are appropriate for it, then "CompleteOrEscalate" the dialog to the host assistant.'
             " Do not waste the user's time. Do not make up invalid tools or functions."
@@ -73,7 +76,7 @@ book_hotel_prompt = ChatPromptTemplate.from_messages(
         ),
         ("placeholder", "{messages}"),
     ]
-).partial(time=datetime.now())
+).partial(time=datetime.now(), language=os.getenv("LANGUAGE"), currency=os.getenv("CURRENCY"))
 
 book_hotel_safe_tools = [get_availability_for_hotels, get_town_id_for_hotels, get_hotel_info, get_hotel_rooms_available, create_hotel_booking, update_hotel_booking, cancel_hotel_booking]
 book_hotel_sensitive_tools = []

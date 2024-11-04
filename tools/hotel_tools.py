@@ -14,7 +14,6 @@ def get_availability_for_hotels(
     children: Optional[int] = 0,
     infants: Optional[int] = 0,
     ages: Optional[List[int]] = [],
-    currency: Optional[int] = 1,
 ) -> List[Dict]:
     """
     Get availability of hotels in a given town.
@@ -27,19 +26,19 @@ def get_availability_for_hotels(
     children: The number of children. Default is 0.
     infants: The number of infants. Default is 0.
     ages: The ages of the children. Default is [].
-    currency: The currency. Default is 1.
 
     Returns:
     A list of dictionaries containing the availability of
     hotels in the given town.
 
     Example:
-    get_availability(townId='1234', checkin_date='2022-12-01', checkout_date='2022-12-05', adults=2, children=1)    
+    get_availability(townId='1234', checkin_date='2022-12-01', checkout_date='2022-12-05', adults=2, children=1)
     """
     url = f'{os.getenv("CTS_API_V1")}/hotel/'
 
     ctsToken = os.getenv("CTS_TOKEN")
     headers = {'Authorization': f'token {ctsToken}'}
+    currency = 1 if os.getenv('CURRENCY') == 'CLP' else 2
     json = {'townId': townId, 'checkin': checkin_date, 'checkout': checkout_date, 'rooms': [{'adults': adults, 'children': children, 'infants': infants, 'ages': ages}], 'currency': currency}
     response = requests.post(url, json=json, headers=headers)
     result = generate_hotels_availability_response(response.json(), json)
@@ -55,7 +54,6 @@ def get_hotel_info(
     children: Optional[int] = 0,
     infants: Optional[int] = 0,
     ages: Optional[list[int]] = [],
-    currency: Optional[int] = 1,
 ) -> list[dict]:
     """
     Get general information from a specific hotel.
@@ -69,7 +67,6 @@ def get_hotel_info(
     children: The number of children. Default is 0.
     infants: The number of infants. Default is 0.
     ages: The ages of the children. Default is [].
-    currency: The currency. Default is 1.
 
     Use this function when the user wants to know information about a specific hotel.
 
@@ -85,6 +82,7 @@ def get_hotel_info(
 
         ctsToken = os.getenv("CTS_TOKEN")
         headers = {'Authorization': f'token {ctsToken}'}
+        currency = 1 if os.getenv('CURRENCY') == 'CLP' else 2
         json = {'townId': townId, 'checkin': checkin_date, 'checkout': checkout_date, 'rooms': [{'adults': adults, 'children': children, 'infants': infants, 'ages': ages}], 'currency': currency}
         response = requests.post(url, json=json, headers=headers).json()
         hotelData = response['data']
@@ -123,7 +121,6 @@ def get_hotel_rooms_available(
     children: Optional[int] = 0,
     infants: Optional[int] = 0,
     ages: Optional[list[int]] = [],
-    currency: Optional[int] = 1,
 ) -> list[dict]:
     """
     Get the rooms available in a given hotel.
@@ -137,7 +134,6 @@ def get_hotel_rooms_available(
     children: The number of children. Default is 0.
     infants: The number of infants. Default is 0.
     ages: The ages of the children. Default is [].
-    currency: The currency. Default is 1.
 
     Use this function when the user wants already has selected a hotel and wants to reserve a room.
     You have to show the rooms available with the format below.
@@ -165,6 +161,7 @@ def get_hotel_rooms_available(
 
         ctsToken = os.getenv("CTS_TOKEN")
         headers = {'Authorization': f'token {ctsToken}'}
+        currency = 1 if os.getenv('CURRENCY') == 'CLP' else 2
         json = {'townId': townId, 'checkin': checkin_date, 'checkout': checkout_date, 'rooms': [{'adults': adults, 'children': children, 'infants': infants, 'ages': ages}], 'currency': currency}
         response = requests.post(url, json=json, headers=headers).json()
         hotelName = response['data']['name']
@@ -241,7 +238,6 @@ def create_hotel_booking(
     children: Optional[int] = 0,
     infants: Optional[int] = 0,
     ages: Optional[list[int]] = [],
-    currency: Optional[int] = 1,
     roomId: int = None,
     name: Optional[str] = '',
     lastName: Optional[str] = '',
@@ -264,7 +260,6 @@ def create_hotel_booking(
     children: The number of children. Default is 0.
     infants: The number of infants. Default is 0.
     ages: The ages of the children. Default is [].
-    currency: The currency. 1 is for CLP, 2 for USD. Default is 1.
     roomId: The room ID.
     name: The name of the guest.
     lastName: The last name of the guest.
@@ -280,7 +275,8 @@ def create_hotel_booking(
     a link to the booking detail.
     """
     try:
-        hotelAvailability = get_data_for_booking(hotelId=hotelId, townId=townId, checkin_date=checkin_date, checkout_date=checkout_date, adults=adults, children=children, infants=infants, ages=ages, currency=currency)
+        currency = 1 if os.getenv('CURRENCY') == 'CLP' else 2
+        hotelAvailability = get_data_for_booking(hotelId=hotelId, townId=townId, checkin_date=checkin_date, checkout_date=checkout_date, adults=adults, children=children, infants=infants, ages=ages)
         if not hotelAvailability:
             raise ValueError("No availabilty found for this hotel.")
         hotelData = hotelAvailability['data']
@@ -306,7 +302,7 @@ def create_hotel_booking(
         #convert checkin_date and checkout_date from 'YYY-mm-dd' to 'dd-mm-YYY'
         checkin_date_inv = datetime.strptime(checkin_date, '%Y-%m-%d').strftime('%d-%m-%Y')
         checkout_date_inv = datetime.strptime(checkout_date, '%Y-%m-%d').strftime('%d-%m-%Y')
-        
+
         # Collecting booking information
         for room in rooms:
             inventory_ids = []
@@ -536,13 +532,14 @@ def generate_hotels_availability_response(json_response, payload):
         hotelAddress = data['address']
         priceList = map(lambda x: x['price_value_with_tax'], data['availability'])
         priceFrom = min(priceList)
+        currency = 'CLP' if payload['currency'] == 1 else 'USD'
         ammenities = ', '.join([amenity['name'] for amenity in data['ammenities']])
         link = f'{os.getenv("FRONT_HOST")}/travel-assistant/hotels/{hotelId}?townId={townId}&checkin={payload["checkin"]}&checkout={payload["checkout"]}&rooms=[{{"adults":{payload["rooms"][0]["adults"]},"children":{payload["rooms"][0]["children"]},"infants":{payload["rooms"][0]["infants"]},"ages":{payload["rooms"][0]["ages"]}}}]'
         result += f'Hotel ID: {hotelId}\n'
         result += f'Hotel Name: {hotelName}\n'
         result += f'Hotel Stars: {stars}\n'
         result += f'Hotel Address: {hotelAddress}\n'
-        result += f'Price: From ${priceFrom}\n'
+        result += f'Price: From ${priceFrom} {currency}\n'
         result += f'Click here to see details: {link}\n'
         result += f'(The following information do not show to the user, keep only for you and use it to filter according to users needs)\n'
         result += f'Hotel Category: {data["category"]["name"]}\n'
@@ -558,7 +555,6 @@ def get_data_for_booking(
     children: Optional[int] = 0,
     infants: Optional[int] = 0,
     ages: Optional[list[int]] = [],
-    currency: Optional[int] = 1,
 ) -> list[dict]:
     """
     Get availability of hotels in a given town.
@@ -572,7 +568,6 @@ def get_data_for_booking(
     children: The number of children. Default is 0.
     infants: The number of infants. Default is 0.
     ages: The ages of the children. Default is [].
-    currency: The currency. Default is 1.
 
     Use this function when the user wants to know more information of the hotel
     or has already selected a hotel.
@@ -582,12 +577,13 @@ def get_data_for_booking(
     one hotel in the given hotel id.
 
     Example:
-    get_availability(hotelId = '196', townId='1234', checkin_date='2022-12-01', checkout_date='2022-12-05', adults=2, children=1)    
+    get_availability(hotelId = '196', townId='1234', checkin_date='2022-12-01', checkout_date='2022-12-05', adults=2, children=1)
     """
     url = f'{os.getenv("CTS_API_V1")}/hotel/{hotelId}/'
 
     ctsToken = os.getenv("CTS_TOKEN")
     headers = {'Authorization': f'token {ctsToken}'}
+    currency = 1 if os.getenv('CURRENCY') == 'CLP' else 2
     json = {'townId': townId, 'checkin': checkin_date, 'checkout': checkout_date, 'rooms': [{'adults': adults, 'children': children, 'infants': infants, 'ages': ages}], 'currency': currency}
     response = requests.post(url, json=json, headers=headers)
     result = response.json()

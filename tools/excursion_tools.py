@@ -11,7 +11,6 @@ def get_availability_for_transfer_and_excursions(
     fecha: str,
     adults: Optional[int] = 1,
     children: Optional[int] = 0,
-    currency: Optional[int] = 1,
     ) -> list[dict]:
     """
     Get availability of transport or excursions in a given town.
@@ -22,7 +21,6 @@ def get_availability_for_transfer_and_excursions(
     fecha (string): The date (format YYYY-MM-DD).
     adults: The number of adults. Default is 1.
     children: The number of children. Default is 0.
-    currency: The currency. 1 is for CLP, and 2 is for USD. Default is 1.
 
     Returns:
     A list of dictionaries containing the availability of
@@ -32,6 +30,7 @@ def get_availability_for_transfer_and_excursions(
     get_availability_for_transport_and_excursions(townId='1234', tipos='1', fecha='2024-12-01', adults=2, children=1, currency=1)
     """
 
+    currency = 1 if os.getenv("CURRENCY") == 'CLP' else 2
     url = f'{os.getenv("CTS_API_V2")}/availability/?townId={townId}&tipos={tipos}&fecha={fecha}&adults={adults}&children={children}&currency={currency}'
     ctsToken = os.getenv("CTS_TOKEN")
     headers = {'Authorization': f'token {ctsToken}'}
@@ -76,7 +75,6 @@ def get_excursion_or_transfer_description(
     date: str,
     adults: int,
     children: int,
-    currency: int
 )->list [dict]:
     """
     Get the information of the excursion or transfer.
@@ -88,8 +86,8 @@ def get_excursion_or_transfer_description(
     date (string): The date (format YYYY-MM-DD).
     adults: The number of adults. Default is 1.
     children: The number of children. Default is 0.
-    currency: The currency. 1 is for CLP, and 2 is for USD. Default is 1.
     """
+    currency = 1 if os.getenv("CURRENCY") == 'CLP' else 2
     url = f'{os.getenv("CTS_API_V2")}/availability/?townId={townId}&tipos={tipos}&fecha={date}&adults={adults}&children={children}&currency={currency}'
     ctsToken = os.getenv("CTS_TOKEN")
     headers = { 'Authorization': f'token {ctsToken}' }
@@ -107,8 +105,7 @@ def get_excursion_or_transfer_options_avilable(
     tipos: int,
     date: str,
     adults: int,
-    children: int,
-    currency: int
+    children: int
 )->list [dict]:
     """
     Get the options for excursions or transfers.
@@ -120,7 +117,6 @@ def get_excursion_or_transfer_options_avilable(
     fecha (string): The date (format YYYY-MM-DD).
     adults: The number of adults. Default is 1.
     children: The number of children. Default is 0.
-    currency: The currency. 1 is for CLP, and 2 is for USD. Default is 1.
 
     Returns:
     A list of dictionaries containing the availability of
@@ -129,6 +125,7 @@ def get_excursion_or_transfer_options_avilable(
     Example:
     get_excursion_or_transfer_options(townId=1234, tipos=1, fecha='2024-12-01', adults=2, children=1, currency=1)
     """
+    currency = 1 if os.getenv("CURRENCY") == 'CLP' else 2
     url = f'{os.getenv("CTS_API_V2")}/availability/?townId={townId}&tipos={tipos}&fecha={date}&adults={adults}&children={children}&currency={currency}'
     ctsToken = os.getenv("CTS_TOKEN")
     headers = { 'Authorization': f'token {ctsToken}' }
@@ -155,7 +152,6 @@ def create_transport_or_excursion_booking(
     country: str,
     adults: Optional[int] = 1,
     children: Optional[int] = 0,
-    currency: Optional[int] = 1,
     referenceNumber: Optional[str] = 'N/A',
     notes: Optional[str] = 'N/A',
     flightNumber: Optional[str] = 'N/A',
@@ -171,7 +167,6 @@ def create_transport_or_excursion_booking(
     travelDate (string): The date (format YYYY-MM-DD).
     adults: The number of adults. Default is 1.
     children: The number of children. Default is 0.
-    currency: The currency. 1 is for CLP, and 2 is for USD. Default is 1.
     firstName: The first name of the passenger.
     lastName: The last name of the passenger.
     email: The email of the passenger.
@@ -190,7 +185,8 @@ def create_transport_or_excursion_booking(
     create_transport_or_excursion_booking()
     """
 
-    serviceAvailability = get_data_for_excursion_or_transfer_booking(serviceNumber=serviceNumber, serviceCode=serviceCode, townId=townId, tipos=tipos, travelDate=travelDate, adults=adults, children=children, currency=currency)
+    currency = 1 if os.getenv("CURRENCY") == 'CLP' else 2
+    serviceAvailability = get_data_for_excursion_or_transfer_booking(serviceNumber=serviceNumber, serviceCode=serviceCode, townId=townId, tipos=tipos, travelDate=travelDate, adults=adults, children=children)
     serviceCode = serviceAvailability['service_code']
     adults = serviceAvailability['adults']
     children = serviceAvailability['children']
@@ -364,8 +360,7 @@ def get_data_for_excursion_or_transfer_booking(
     tipos: int,
     travelDate: str,
     adults: int,
-    children: int,
-    currency: int,
+    children: int
     ) -> dict:
     """
     Get the data for a transport or excursion booking.
@@ -378,12 +373,12 @@ def get_data_for_excursion_or_transfer_booking(
     travelDate (string): The travel date.
     adults: The number of adults. Default is 1.
     children: The number of children. Default is 0.
-    currency: The currency. 1 is for CLP, and 2 is for USD. Default is 1.
 
     Returns:
     The booking response as a string with the booking ID and
     a link to the booking detail.
     """
+    currency = 1 if os.getenv("CURRENCY") == 'CLP' else 2
     url = f'{os.getenv("CTS_API_V2")}/availability/?townId={townId}&tipos={tipos}&fecha={travelDate}&adults={adults}&children={children}&currency={currency}'
     ctsToken = os.getenv("CTS_TOKEN")
     headers = {'Authorization': f'token {ctsToken}'}
